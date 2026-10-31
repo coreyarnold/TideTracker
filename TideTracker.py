@@ -194,7 +194,7 @@ def past24(StationID):
         end_date=todaystr,
         product="water_level",
         datum="MLLW",
-        units='english',
+        units='english' if UNITS == "imperial" else "metric",
         time_zone="lst_ldt")
 
     return WaterLevel
