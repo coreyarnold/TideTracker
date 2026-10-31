@@ -1,0 +1,12 @@
+[Unit]
+Description=tidetracker.service
+After=network.target
+
+[Service]
+WorkingDirectory=/home/corey/TideTracker/
+User=corey
+ExecStart=/usr/bin/python3 /home/corey/TideTracker/TideTracker.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
