@@ -27,6 +27,12 @@ from astral import sun, LocationInfo, moon
 sys.path.append('lib')
 from waveshare_epd import epd7in5_V2
 from PIL import Image, ImageDraw, ImageFont
+import logging
+
+#logging.basicConfig(level=logging.INFO)
+logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S')
 
 picdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'images')
 icondir = os.path.join(picdir, 'icon')
@@ -57,7 +63,8 @@ UNITS = config.units
 TIMEZONE = config.timezone
 
 # Create URL for API call
-BASE_URL = 'http://api.openweathermap.org/data/2.5/onecall?'
+#BASE_URL = 'http://api.openweathermap.org/data/2.5/onecall?'
+BASE_URL = 'http://api.openweathermap.org/data/3.0/onecall?'
 URL = BASE_URL + 'lat=' + LATITUDE + '&lon=' + LONGITUDE + '&units=' + UNITS + '&appid=' + API_KEY
 
 '''
@@ -71,23 +78,25 @@ Functions and defined variables
 
 # define funciton for writing image and sleeping for specified time
 def write_to_screen(image, sleep_seconds):
-    print('Writing to screen.')  # for debugging
-    # Create new blank image template matching screen resolution
-    h_image = Image.new('1', (epd.width, epd.height), 255)
-    # Open the template
-    screen_output_file = Image.open(os.path.join(picdir, image))
-    # Initialize the drawing context with template as background
-    h_image.paste(screen_output_file, (0, 0))
-    epd.display(epd.getbuffer(h_image))
-    # Sleep
-    epd.sleep()  # Put screen to sleep to prevent damage
+    logging.info("writing to screen")
+
+    logging.info("read image file")
+    Himage = Image.open(os.path.join(picdir, image))
+
+    logging.info("send the image to the display")
+    epd.display(epd.getbuffer(Himage))
+
+    logging.info("Goto Sleep...")
+    epd.sleep()
+
     print('Sleeping for ' + str(sleep_seconds) + '.')
     time.sleep(sleep_seconds)  # Determines refresh rate on data
-    epd.init()  # Re-Initialize screen
 
 
 # define function for displaying error
 def display_error(error_source):
+    logging.info("displaying an error")
+
     # Display an error
     print('Error in the', error_source, 'request.')
     # Initialize drawing
@@ -104,45 +113,72 @@ def display_error(error_source):
     # Close error image
     error_image.close()
     # Write error to screen
+    epd.init()
     write_to_screen(error_image_file, 30)
 
 
 # define function for getting weather data
 def getWeather(URL):
-    # Ensure there are no errors with connection
-    error_connect = True
-    while error_connect == True:
+    logging.info("getting Weather data")
+
+    # Retry until we get a good response
+    while True:
         try:
             # HTTP request
             print('Attempting to connect to OWM.')
-            response = requests.get(URL)
+            response = requests.get(URL, timeout=30)
             print('Connection to OWM successful.')
-            error_connect = None
         except:
             # Call function to display connection error
-            print('Connection error.')
+            print('Connection error with OWM')
             display_error('CONNECTION')
+            continue
 
-    # Check status of code request
-    if response.status_code == 200:
-        print('Connection to Open Weather successful.')
-        # get data in jason format
-        data = response.json()
+        # Check status of code request
+        if response.status_code == 200:
+            print('Connection to Open Weather successful.')
+            # get data in jason format
+            data = response.json()
 
-        with open('data.txt', 'w') as outfile:
-            json.dump(data, outfile)
+            with open('data.txt', 'w') as outfile:
+                json.dump(data, outfile)
 
-        return data
+            return data
 
-    else:
         # Call function to display HTTP error
         display_error('HTTP Error: ' + str(response.status_code))
 
 
 # last 24 hour data, add argument for start/end_date
-def past24(StationID):
+#def past24(StationID):
     # Create Station Object
-    stationdata = nc.Station(StationID)
+#    stationdata = nc.Station(id=StationID)
+#    stationdata = nc.Station(id="5744635")
+
+    # Get today date string
+#    today = dt.datetime.now()
+#    todaystr = today.strftime("%Y%m%d %H:%M")
+    # Get yesterday date string
+#    yesterday = today - dt.timedelta(days=1)
+#    yesterdaystr = yesterday.strftime("%Y%m%d %H:%M")
+
+    # Get water level data
+#    WaterLevel = stationdata.get_data(
+#        begin_date=yesterdaystr,
+#        end_date=todaystr,
+#        product="water_level",
+#        datum="MLLW",
+#        units='english' if UNITS == "imperial" else "metric",
+#        time_zone="lst_ldt")
+
+#    return WaterLevel
+
+# last 24 hour data, add argument for start/end_date
+def past24(StationID):
+    logging.info("getting past 24 hour water data")
+    # Create Station Object
+#    stationdata = nc.Station(StationID)
+    stationdata = nc.Station(id="9437540")
 
     # Get today date string
     today = dt.datetime.now()
@@ -151,27 +187,30 @@ def past24(StationID):
     yesterday = today - dt.timedelta(days=1)
     yesterdaystr = yesterday.strftime("%Y%m%d %H:%M")
 
+
+#    logging.info(f"getting station data for {StationID} from: {yesterdaystr} to: {todaystr}") 
     # Get water level data
     WaterLevel = stationdata.get_data(
         begin_date=yesterdaystr,
         end_date=todaystr,
         product="water_level",
         datum="MLLW",
-        units='english' if UNITS == "imperial" else "metric",
+        units='english',
         time_zone="lst_ldt")
 
     return WaterLevel
 
-
 # Plot last 24 hours of tide
 def plotTide(TideData):
+    logging.info("plotting tide data")
+    water_level = 'v'
     # Adjust data for negative values
-    minlevel = TideData['v'].min()
-    TideData['v'] = TideData['v'] - minlevel
+    minlevel = TideData[water_level].min()
+    TideData[water_level] = TideData[water_level] - minlevel
 
     # Create Plot
     fig, axs = plt.subplots(figsize=(8, 4))
-    TideData['v'].plot.area(ax=axs, color='black')
+    TideData[water_level].plot.area(ax=axs, color='black')
     plt.title('Tide- Past 24 Hours', fontsize=20)
     plt.savefig('images/TideLevel.png', dpi=60)
     plt.close()
@@ -179,8 +218,9 @@ def plotTide(TideData):
 
 # Get High and Low tide info
 def HiLo(StationID):
+    logging.info("getting HiLo data")
     # Create Station Object
-    stationdata = nc.Station(StationID)
+    stationdata = nc.Station(id=StationID)
 
     # Get today date string
     today = dt.datetime.now()
@@ -203,6 +243,7 @@ def HiLo(StationID):
 
 #From https://github.com/PanderMusubi/lunar-phase-calendar
 def moon_phase_to_inacurate_code(phase):
+    logging.info("converting moon phase to inaccurate code")
     '''Converts moon phase code to inacurate code.'''
     phase = int(phase)
     if phase == 0:
@@ -223,6 +264,8 @@ def moon_phase_to_inacurate_code(phase):
 
 #From https://github.com/PanderMusubi/lunar-phase-calendar
 def day_to_moon_phase_and_accurate_code(day):
+    logging.info("converting day to moon phase")
+
     '''Converts day to moon phase and accurate code.'''
     phase_today = moon.phase(day)
     code_today = moon_phase_to_inacurate_code(phase_today)
@@ -272,14 +315,13 @@ Main Loop
 ****************************************************************
 '''
 
-# Initialize and clear screen
-print('Initializing and clearing screen.')
-epd = epd7in5_V2.EPD()  # Create object for display functions
-epd.init()
-epd.Clear()
-
-
 while True:
+    print('Initializing and clearing screen.')
+    epd = epd7in5_V2.EPD()  # Create object for display functions
+#    logging.info("init and Clear")
+#    epd.init()
+#    epd.Clear()
+
     # Get weather data
     data = getWeather(URL)
 
@@ -462,9 +504,7 @@ while True:
     else:
         tideunits = "m"
     # Iterate over preditions
-    print(hilo_daily)
     for index, row in hilo_daily.iterrows():
-        print(row)
         # For high tide
         if row['type'] == 'H':
             tide_time = index.strftime("%H:%M")
@@ -506,7 +546,15 @@ while True:
 
     # Save the image for display as PNG
     screen_output_file = os.path.join(picdir, 'screen_output.png')
+    logging.info("writing screen output file")
     template.save(screen_output_file)
     # Close the template file
     template.close()
+
+#    print('Initializing and clearing screen.')
+#    epd = epd7in5_V2.EPD()  # Create object for display functions
+#    logging.info("init and Clear")
+    epd.init()
+#    epd.Clear()
+
     write_to_screen(screen_output_file, 600)
