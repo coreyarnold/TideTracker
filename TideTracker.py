@@ -177,8 +177,7 @@ def getWeather(URL):
 def past24(StationID):
     logging.info("getting past 24 hour water data")
     # Create Station Object
-#    stationdata = nc.Station(StationID)
-    stationdata = nc.Station(id="9437540")
+    stationdata = nc.Station(id=StationID)
 
     # Get today date string
     today = dt.datetime.now()

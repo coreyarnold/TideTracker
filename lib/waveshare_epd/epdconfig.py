@@ -48,6 +48,7 @@ class RaspberryPi:
 
         # SPI device, bus = 0, device = 0
         self.SPI = spidev.SpiDev(0, 0)
+        RPi.GPIO.setmode(RPi.GPIO.BCM)
 
     def digital_write(self, pin, value):
         self.GPIO.output(pin, value)

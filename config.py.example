@@ -1,15 +1,15 @@
 # Optional, displayed on top left
-location = ''
+location = 'Dune Ranch'
 # NOAA Station Code for tide data
-station_id = #######
+station_id = 5744635
 
 # For weather data
 # Create Account on openweathermap.com and get API key
 api_key = ''
 
 # Get LATITUDE and LONGITUDE of location
-latitude = 'XX.XXX'
-longitude = '-XX.XXX'
+latitude = '45.2023'
+longitude = '123.9629'
 units = 'imperial'
 
 timezone = "America/Los_Angeles"
